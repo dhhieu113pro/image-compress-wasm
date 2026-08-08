@@ -244,3 +244,5 @@ git push origin master
 ```
 
 Netlify runs `npm run build` (compiling the Rust→WASM codec), publishes `frontend/dist`, and auto-discovers the `/api/compress` function in `netlify/functions/`.
+
+> `netlify.toml` installs Rust (`rustup default stable`) at the start of the build, then runs `npm run build`.
