@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "postinstall": "npm install --prefix frontend",
     "build:wasm": "npx wasm-pack build wasm --target web --out-dir ../frontend/src/pkg",
     "build:function": "npx wasm-pack build wasm --target nodejs --out-dir ../netlify/functions/wasm",
     "dev": "npm run build:wasm && npm run dev --prefix frontend",

@@ -32,9 +32,9 @@ Compress images entirely in your browser — or via a REST API — using a share
 All Rust→WASM builds and the Vite bundle are wired through npm scripts in the root `package.json`.
 
 ```bash
-# install dependencies
+# install dependencies (root postinstall also installs frontend/ deps automatically)
 npm install
-npm install --prefix frontend
+npm install --prefix frontend   # (optional; postinstall already does this)
 
 # full build: web wasm + vite bundle + node wasm (for the API)
 npm run build
