@@ -118,6 +118,21 @@ function wireEvents() {
 
   $('compare-slider').addEventListener('input', onCompareSlide);
 
+  $('theme-toggle').addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  });
+
+  for (const btn of document.querySelectorAll('.tab')) {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('active', b === btn));
+      for (const name of ['raw', 'multipart', 'json']) {
+        $('tab-' + name).hidden = btn.dataset.tab !== name;
+      }
+    });
+  }
+
   for (const id of ['quality', 'scale', 'format', 'algorithm', 'metadata']) {
     const el = $(id);
     el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', () => {
@@ -129,7 +144,13 @@ function wireEvents() {
 
 const html = `
 <main>
-  <h1>Image Compressor</h1>
+  <header class="topbar">
+    <h1>Image Compressor</h1>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark/light theme" title="Toggle theme">
+      <svg class="sun" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.42l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.42L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.42l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.42l-1.06-1.06zm1.06-12.37c-.39-.39-1.03-.39-1.41 0s-.39 1.03 0 1.42l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.42L19.42 4.58zM5.99 18.01l-1.06 1.06c-.39.39-.39 1.03 0 1.42s1.03.39 1.41 0l1.06-1.06c.39-.39.39-1.03 0-1.42s-1.03-.39-1.41 0z"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12.3 22h-.1c-5.5 0-10-4.5-10-10 0-4.8 3.5-8.9 8.3-9.7.5-.1 1 .3 1.1.8.1.5-.2 1-.7 1.2-3.8 1.4-6.3 5.1-6.3 9.2 0 4.1 3.4 7.5 7.5 7.5 3.8 0 7.1-2.9 7.5-6.7.1-.5.6-.9 1.1-.8.5.1.8.6.7 1.1-.8 4.6-4.8 8-9.6 8z"/></svg>
+    </button>
+  </header>
   <p class="sub">Compress images entirely in your browser via WebAssembly. No upload.</p>
   <div id="dropzone">
     <div id="loading" class="loading">Processing…</div>
@@ -179,19 +200,86 @@ const html = `
       </div>
     </div>
   </div>
+  <section id="api">
+    <h2>REST API</h2>
+    <p class="sub">Compress an image over HTTP. Same wasm engine, no install needed.</p>
+
+    <h3>Compress image</h3>
+    <p class="endpoint"><code>POST /api/compress</code></p>
+    <p>The response body is the compressed image. Send the file as raw bytes, multipart, or JSON.</p>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="raw">Raw bytes</button>
+      <button class="tab" data-tab="multipart">Multipart</button>
+      <button class="tab" data-tab="json">JSON</button>
+    </div>
+
+    <pre class="code" id="tab-raw"><code>curl -X POST https://image-compress-wasm.netlify.app/api/compress \
+  -H "Content-Type: application/octet-stream" \
+  --data-binary "@photo.png" \
+  -o compressed.webp</code></pre>
+
+    <pre class="code" id="tab-multipart" hidden><code>curl -X POST https://image-compress-wasm.netlify.app/api/compress \
+  -F "file=@photo.png" \
+  -F "quality=80" \
+  -F "format=webp" \
+  -o compressed.webp</code></pre>
+
+    <pre class="code" id="tab-json" hidden><code>curl -X POST https://image-compress-wasm.netlify.app/api/compress \
+  -H "Content-Type: application/json" \
+  -d '{"image":"&lt;base64&gt;","quality":80,"format":"webp"}' \
+  -o compressed.webp</code></pre>
+
+    <h3>Request parameters</h3>
+    <table>
+      <tr><th>param</th><th>type</th><th>default</th><th>description</th></tr>
+      <tr><td><code>quality</code></td><td>int</td><td>80</td><td>1–100 (JPEG/WebP)</td></tr>
+      <tr><td><code>format</code></td><td>string</td><td>webp</td><td>webp | jpeg | png</td></tr>
+      <tr><td><code>algorithm</code></td><td>string</td><td>Lanczos3</td><td>Lanczos3 | CatmullRom | Triangle</td></tr>
+      <tr><td><code>removeMetadata</code></td><td>bool</td><td>false</td><td>strip EXIF</td></tr>
+      <tr><td><code>maxWidth</code>/<code>maxHeight</code></td><td>int</td><td>null</td><td>resize bounds (keeps aspect)</td></tr>
+    </table>
+
+    <h3>Response</h3>
+    <p>Returns <code>200</code> with the compressed image as the body and these headers. On error, <code>400</code> or <code>500</code> with a JSON <code>{ "error": "..." }</code> body.</p>
+    <pre class="code"><code>HTTP/1.1 200 OK
+Content-Type: image/webp
+X-Original-Size: 335088
+X-Compressed-Size: 167116
+X-Savings-Percent: 50.2
+X-Format: webp
+
+&#60;binary compressed image bytes&#62;</code></pre>
+
+  </section>
 </main>
 <style>
-  :root { color-scheme: dark; font-family: system-ui, sans-serif; }
-  body { margin: 0; background: #111318; color: #e6e8ee; }
+  :root { color-scheme: dark; font-family: system-ui, sans-serif;
+    --bg: #111318; --fg: #e6e8ee; --muted: #9aa0ad; --border: #2a2f3a;
+    --code-bg: #0c0e12; --surface: #1c2230; --accent: #5b8def; --danger: #ff6b6b;
+    --img-bg: #0c0e12; --code-fg: #c9d1e4; --green: #7ee787; }
+  :root[data-theme="light"] { color-scheme: light;
+    --bg: #f6f7f9; --fg: #1b1f24; --muted: #5b6470; --border: #d8dce2;
+    --code-bg: #f0f2f5; --surface: #ffffff; --accent: #3b6fe0; --danger: #d93025;
+    --img-bg: #e7eaf0; --code-fg: #2b333e; --green: #1a7f37; }
+  body { margin: 0; background: var(--bg); color: var(--fg); }
   main { max-width: 860px; margin: 0 auto; padding: 24px; }
-  h1 { margin: 0 0 4px; }
-  .sub { margin: 0 0 16px; color: #9aa0ad; }
-  #dropzone { border: 2px dashed #3a4050; border-radius: 12px; padding: 40px; text-align: center;
-    position: relative; color: #9aa0ad; cursor: pointer; transition: border-color .2s; }
-  #dropzone.dragging, #dropzone:hover { border-color: #5b8def; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .topbar h1 { margin: 0 0 4px; }
+  .theme-toggle { background: var(--surface); color: var(--fg); border: 1px solid var(--border);
+    width: 38px; height: 38px; border-radius: 8px; cursor: pointer; display: grid; place-items: center; }
+  .theme-toggle svg { grid-area: 1/1; }
+  .theme-toggle .sun { display: none; }
+  :root[data-theme="dark"] .theme-toggle .moon { display: none; }
+  :root[data-theme="dark"] .theme-toggle .sun { display: block; }
+  .sub { margin: 0 0 16px; color: var(--muted); }
+  #dropzone { border: 2px dashed var(--border); border-radius: 12px; padding: 40px; text-align: center;
+    position: relative; color: var(--muted); cursor: pointer; transition: border-color .2s; }
+  #dropzone.dragging, #dropzone:hover { border-color: var(--accent); }
   #loading { display: none; position: absolute; inset: 0; align-items: center; justify-content: center;
-    gap: 10px; background: rgba(17,19,24,.7); border-radius: 12px; color: #e6e8ee; font-weight: 600; }
-  #loading::before { content: ""; width: 20px; height: 20px; border: 3px solid #5b8def; border-top-color: transparent;
+    gap: 10px; background: color-mix(in srgb, var(--bg) 70%, transparent); border-radius: 12px;
+    color: var(--fg); font-weight: 600; }
+  #loading::before { content: ""; width: 20px; height: 20px; border: 3px solid var(--accent); border-top-color: transparent;
     border-radius: 50%; animation: spin .8s linear infinite; }
   #dropzone.loading #loading { display: flex; }
   #dropzone.loading p { opacity: .15; }
@@ -202,21 +290,36 @@ const html = `
   #compare-block { display: none; }
   #compare-block.active { display: block; }
   .compare { position: relative; height: 320px; border-radius: 8px; overflow: hidden; }
-  .compare img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #0c0e12; }
+  .compare img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: var(--img-bg); }
   #preview { clip-path: inset(0 50% 0 0); }
-  .divider { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: #fff; opacity: .8; }
+  .divider { position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; background: var(--fg); opacity: .8; }
   .divider span { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 34px; height: 34px;
-    background: #fff; border-radius: 50%; border: 2px solid #5b8def; }
-  .compare-bar { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: 13px; color: #9aa0ad; }
+    background: var(--fg); border-radius: 50%; border: 2px solid var(--accent); }
+  .compare-bar { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: 13px; color: var(--muted); }
   .compare-bar input { flex: 1; }
   .controls { flex: 1; display: flex; flex-direction: column; gap: 12px; }
   label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
   label.check { flex-direction: row; align-items: center; }
-  .error { color: #ff6b6b; min-height: 1.2em; margin-top: 8px; }
-  .result { border-top: 1px solid #2a2f3a; padding-top: 12px; }
+  .error { color: var(--danger); min-height: 1.2em; margin-top: 8px; }
+  .result { border-top: 1px solid var(--border); padding-top: 12px; }
   .result p { margin: 4px 0; }
-  .btn { display: inline-block; margin-top: 8px; padding: 8px 16px; background: #5b8def;
+  .btn { display: inline-block; margin-top: 8px; padding: 8px 16px; background: var(--accent);
     color: #fff; border-radius: 6px; text-decoration: none; }
+  #api { margin-top: 40px; border-top: 1px solid var(--border); padding-top: 20px; }
+  #api h2 { margin: 0 0 4px; }
+  #api h3 { margin: 24px 0 8px; font-size: 1rem; }
+  .endpoint code { background: var(--surface); padding: 2px 8px; border-radius: 4px; color: var(--green); }
+  .tabs { display: flex; gap: 8px; margin: 12px 0; }
+  .tab { background: var(--surface); color: var(--muted); border: 1px solid var(--border); padding: 6px 14px;
+    border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  pre.code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; overflow-x: auto; margin: 0; }
+  pre.code code { background: none; padding: 0; color: var(--code-fg); font-size: 13px; }
+  #api table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  #api th, #api td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  #api th { color: var(--muted); font-weight: 600; }
+  #api code { background: var(--surface); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
 </style>
 `;
 

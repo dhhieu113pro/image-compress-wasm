@@ -113,6 +113,13 @@ compress_image(
 
 It runs **synchronously** (blocks briefly for large images) — keep it off the hot path or wrap it in a Web Worker for very large files.
 
+## Frontend
+
+- Drag & drop (browser tabs included), click-to-browse, and paste an image to load it.
+- Slide the compare handle to see original vs. compressed (left = original, right = compressed).
+- Theme follows your OS (`light`/`dark`) automatically; use the sun/moon button in the top-right to override. Choice is saved in `localStorage`.
+- The homepage includes a built-in API reference with copy-paste `curl` examples.
+
 ---
 
 ## 3. REST API (Netlify Function)
