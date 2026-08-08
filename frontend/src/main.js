@@ -11,6 +11,15 @@ const fmt = (n) => n > 1048576 ? `${(n / 1048576).toFixed(2)} MB` : n > 1024 ? `
 function showLoading() { $('dropzone').classList.add('loading'); }
 function hideLoading() { $('dropzone').classList.remove('loading'); }
 
+// Convert a dragged-out image URL (from another tab/page) into a File.
+async function urlToFile(url) {
+  if (!url) return null;
+  const res = await fetch(url);
+  const blob = await res.blob();
+  const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+  return new File([blob], `image.${ext}`, { type: blob.type });
+}
+
 async function processFile(file) {
   showLoading();
   try {
@@ -94,10 +103,12 @@ function wireEvents() {
   dz.addEventListener('click', () => input.click());
   dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragging'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('dragging'));
-  dz.addEventListener('drop', (e) => {
+  dz.addEventListener('drop', async (e) => {
     e.preventDefault();
     dz.classList.remove('dragging');
-    processFile(e.dataTransfer.files[0]);
+    const file = e.dataTransfer.files[0]
+      || await urlToFile(e.dataTransfer.getData('text/uri-list'));
+    processFile(file);
   });
   input.addEventListener('change', () => processFile(input.files[0]));
   dz.addEventListener('paste', (e) => {
