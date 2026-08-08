@@ -1,0 +1,7 @@
+node_modules/
+dist/
+wasm/target/
+frontend/src/pkg/
+*.log
+.DS_Store
+.playwright-mcp

@@ -1,0 +1,16 @@
+[package]
+name = "wasm-image-compress"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2.92"
+image = { version = "0.25.1", default-features = false, features = ["jpeg", "png", "webp"] }
+fast_image_resize = "3.0.4"
+zenwebp = "0.4"
+console_error_panic_hook = "0.1.7"
+serde-wasm-bindgen = "0.6.5"
+serde = { version = "1.0", features = ["derive"] }

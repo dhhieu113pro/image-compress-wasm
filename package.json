@@ -1,0 +1,10 @@
+{
+  "name": "rust-image-compressor-root",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build:wasm": "npx wasm-pack build wasm --target web --out-dir ../frontend/src/pkg",
+    "dev": "npm run build:wasm && npm run dev --prefix frontend",
+    "build": "npm run build:wasm && npm run build --prefix frontend"
+  }
+}
