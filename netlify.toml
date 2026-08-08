@@ -9,10 +9,10 @@
 [build.environment]
   NODE_VERSION = "26.3.1"
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Content-Type = "text/html; charset=UTF-8"
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
 
 [[headers]]
   for = "/*.wasm"
