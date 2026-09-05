@@ -3,6 +3,8 @@ mod core;
 mod ffi;
 
 pub use core::{compress_core, inspect_core, CompressionError, CompressionOptions, ImageInfo as CoreImageInfo, OutputFormat, ResizeAlgorithm};
+#[cfg(not(target_arch = "wasm32"))]
+pub use ffi::{image_compress, image_compress_error_free, image_compress_free, NativeResult};
 
 use wasm_bindgen::prelude::*;
 
