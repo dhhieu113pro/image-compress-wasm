@@ -1,0 +1,105 @@
+name: DNX
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dnx-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --manifest-path wasm/Cargo.toml
+      - run: cargo install wasm-pack --locked
+      - run: wasm-pack build wasm --target web --out-dir ../frontend/src/pkg
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64 }
+          - { os: ubuntu-latest, rid: linux-x64 }
+          - { os: macos-14, rid: osx-arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - shell: pwsh
+        run: ./scripts/build-native.ps1 -Rid '${{ matrix.rid }}'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: native-${{ matrix.rid }}
+          path: artifacts/native/${{ matrix.rid }}
+  test-dotnet:
+    needs: native
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, rid: win-x64 }
+          - { os: ubuntu-latest, rid: linux-x64 }
+          - { os: macos-14, rid: osx-arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: 10.0.x }
+      - uses: actions/download-artifact@v7
+        with:
+          name: native-${{ matrix.rid }}
+          path: artifacts/native/${{ matrix.rid }}
+      - shell: pwsh
+        run: Copy-Item artifacts/native/${{ matrix.rid }}/* dotnet/ImageCompress.Dnx/bin/Release/net10.0/ -Force -ErrorAction SilentlyContinue
+      - run: dotnet test ImageCompress.slnx -c Release
+  package:
+    needs: [rust, native]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: 10.0.x }
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: native-*
+          path: artifacts/native
+          merge-multiple: false
+      - id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then version="${GITHUB_REF_NAME#v}"; else version="0.0.0-ci.${GITHUB_RUN_NUMBER}"; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - if: startsWith(github.ref, 'refs/tags/v')
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/master
+      - run: dotnet pack dotnet/ImageCompress.Dnx/ImageCompress.Dnx.csproj -c Release -o artifacts/packages -p:Version=${{ steps.version.outputs.version }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: nuget-${{ steps.version.outputs.version }}
+          path: artifacts/packages
+  publish:
+    needs: package
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/setup-dotnet@v5
+        with: { dotnet-version: 10.0.x }
+      - uses: actions/download-artifact@v7
+        with:
+          name: nuget-${{ needs.package.outputs.version }}
+          path: artifacts/packages
+      - id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841
+        with: { user: dhhieu113 }
+      - run: dotnet nuget push "artifacts/packages/ImageCompress.Dnx.${{ needs.package.outputs.version }}.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
