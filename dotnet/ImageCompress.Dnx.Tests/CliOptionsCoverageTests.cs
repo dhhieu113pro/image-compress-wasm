@@ -36,13 +36,18 @@ public sealed class CliOptionsCoverageTests
         Assert.Equal(expected, options.Algorithm);
     }
 
-    [Theory]
-    [InlineData(new string[] { })]
-    [InlineData(new[] { "input.png" })]
-    [InlineData(new[] { "input.png", "-o" })]
-    public void Parse_RejectsTooFewArguments(string[] args)
+    [Fact]
+    public void Parse_RejectsTooFewArguments()
     {
-        Assert.Throws<ArgumentException>(() => CliOptions.Parse(args));
+        var cases = new[]
+        {
+            Array.Empty<string>(),
+            new[] { "input.png" },
+            new[] { "input.png", "-o" }
+        };
+
+        foreach (var args in cases)
+            Assert.Throws<ArgumentException>(() => CliOptions.Parse(args));
     }
 
     [Fact]
