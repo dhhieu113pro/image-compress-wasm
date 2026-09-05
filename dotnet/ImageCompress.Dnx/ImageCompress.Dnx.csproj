@@ -21,6 +21,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ImageCompress.Dnx.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="../../artifacts/native/win-x64/image_compress.dll" Condition="Exists('../../artifacts/native/win-x64/image_compress.dll')" Pack="true" PackagePath="tools/net10.0/any/runtimes/win-x64/native/" Link="runtimes/win-x64/native/image_compress.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../artifacts/native/win-arm64/image_compress.dll" Condition="Exists('../../artifacts/native/win-arm64/image_compress.dll')" Pack="true" PackagePath="tools/net10.0/any/runtimes/win-arm64/native/" Link="runtimes/win-arm64/native/image_compress.dll" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../artifacts/native/linux-x64/libimage_compress.so" Condition="Exists('../../artifacts/native/linux-x64/libimage_compress.so')" Pack="true" PackagePath="tools/net10.0/any/runtimes/linux-x64/native/" Link="runtimes/linux-x64/native/libimage_compress.so" CopyToOutputDirectory="PreserveNewest" />
