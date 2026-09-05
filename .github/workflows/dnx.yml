@@ -77,7 +77,22 @@ jobs:
           name: native-${{ matrix.rid }}
           path: artifacts/native
       - name: .NET unit and native integration tests
-        run: dotnet test ImageCompress.slnx -c Release
+        shell: pwsh
+        run: |
+          dotnet test ImageCompress.slnx -c Release
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -ne 0 -and (Test-Path 'artifacts/coverage/coverage.cobertura.xml')) {
+            [xml]$coverage = Get-Content 'artifacts/coverage/coverage.cobertura.xml'
+            Write-Host 'Partially covered branches:'
+            $coverage.coverage.packages.package.classes.class | ForEach-Object {
+              $className = $_.name
+              $fileName = $_.filename
+              $_.lines.line | Where-Object { $_.branch -eq 'True' -and $_.'condition-coverage' -notlike '100%*' } | ForEach-Object {
+                Write-Host "$fileName :: $className :: line $($_.number) :: $($_.'condition-coverage')"
+              }
+            }
+          }
+          exit $exitCode
 
   package:
     needs: [rust, native, test-dotnet]
