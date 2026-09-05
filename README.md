@@ -2,6 +2,8 @@
 
 Compress images entirely in your browser — or via a REST API — using a shared [Rust](https://rustwasm.github.io/) codec compiled to WebAssembly. No image ever leaves your device when using the frontend.
 
+**Live app:** https://dhhieu113pro.github.io/image-compress-wasm/
+
 ```
 ┌─────────────────────────┐     ┌─────────────────────┐     ┌──────────────┐
 │  frontend/  (Vite UI)   │ ──► │ wasm/  (Rust codec) │ ──► │  output      │
