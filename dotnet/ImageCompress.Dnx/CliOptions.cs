@@ -21,7 +21,7 @@ public sealed record CliOptions(string InputPath, string OutputPath, int Quality
             }
         }
         if (output is null) throw new ArgumentException("Output path is required (-o/--output)");
-        if (quality is < 1 or > 100) throw new ArgumentException("Quality must be between 1 and 100");
+        if (quality > 100) throw new ArgumentException("Quality must be between 1 and 100");
         format ??= InferFormat(output);
         return new(input, output, quality, maxWidth, maxHeight, format.Value, algorithm, removeMetadata);
     }
