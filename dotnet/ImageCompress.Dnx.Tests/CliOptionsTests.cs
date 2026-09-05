@@ -1,3 +1,5 @@
+using ImageCompress.Dnx;
+
 namespace ImageCompress.Dnx.Tests;
 
 public sealed class CliOptionsTests
