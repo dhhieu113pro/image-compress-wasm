@@ -1,4 +1,5 @@
 name: DNX
+
 on:
   push:
     branches: [master]
@@ -6,38 +7,56 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: dnx-${{ github.ref }}
   cancel-in-progress: false
+
 jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --manifest-path wasm/Cargo.toml
-      - run: cargo install wasm-pack --locked
-      - run: wasm-pack build wasm --target web --out-dir ../frontend/src/pkg
+      - name: Rust tests
+        run: cargo test --manifest-path wasm/Cargo.toml
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+      - name: Verify browser WASM build
+        run: wasm-pack build wasm --target web --out-dir ../frontend/src/pkg
+
   native:
     strategy:
       fail-fast: false
       matrix:
         include:
           - { os: windows-latest, rid: win-x64 }
+          - { os: windows-latest, rid: win-arm64 }
           - { os: ubuntu-latest, rid: linux-x64 }
+          - { os: ubuntu-latest, rid: linux-arm64 }
           - { os: macos-14, rid: osx-arm64 }
+          - { os: macos-14, rid: osx-x64 }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - shell: pwsh
+      - name: Install Linux ARM64 linker
+        if: matrix.rid == 'linux-arm64'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Build native library
+        shell: pwsh
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
         run: ./scripts/build-native.ps1 -Rid '${{ matrix.rid }}'
       - uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.rid }}
-          path: artifacts/native/${{ matrix.rid }}
+          path: artifacts/native
+          if-no-files-found: error
+
   test-dotnet:
     needs: native
     strategy:
@@ -51,55 +70,102 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-dotnet@v5
-        with: { dotnet-version: 10.0.x }
+        with:
+          dotnet-version: 10.0.x
       - uses: actions/download-artifact@v7
         with:
           name: native-${{ matrix.rid }}
-          path: artifacts/native/${{ matrix.rid }}
-      - shell: pwsh
-        run: Copy-Item artifacts/native/${{ matrix.rid }}/* dotnet/ImageCompress.Dnx/bin/Release/net10.0/ -Force -ErrorAction SilentlyContinue
-      - run: dotnet test ImageCompress.slnx -c Release
+          path: artifacts/native
+      - name: .NET unit and native integration tests
+        run: dotnet test ImageCompress.slnx -c Release
+
   package:
-    needs: [rust, native]
+    needs: [rust, native, test-dotnet]
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v5
-        with: { dotnet-version: 10.0.x }
+        with:
+          dotnet-version: 10.0.x
       - uses: actions/download-artifact@v7
         with:
           pattern: native-*
-          path: artifacts/native
-          merge-multiple: false
-      - id: version
+          path: artifacts/native-downloads
+      - name: Assemble native assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/native | Out-Null
+          Get-ChildItem artifacts/native-downloads -Directory | ForEach-Object {
+            Get-ChildItem $_.FullName -Directory | ForEach-Object {
+              Copy-Item $_.FullName artifacts/native/ -Recurse -Force
+            }
+          }
+      - name: Determine package version
+        id: version
         shell: bash
         run: |
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then version="${GITHUB_REF_NAME#v}"; else version="0.0.0-ci.${GITHUB_RUN_NUMBER}"; fi
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="0.0.0-ci.${GITHUB_RUN_NUMBER}"
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - if: startsWith(github.ref, 'refs/tags/v')
+      - name: Require release tags to point to master
+        if: startsWith(github.ref, 'refs/tags/v')
         run: git merge-base --is-ancestor "$GITHUB_SHA" origin/master
-      - run: dotnet pack dotnet/ImageCompress.Dnx/ImageCompress.Dnx.csproj -c Release -o artifacts/packages -p:Version=${{ steps.version.outputs.version }}
+      - name: Pack DNX tool
+        run: dotnet pack dotnet/ImageCompress.Dnx/ImageCompress.Dnx.csproj -c Release -o artifacts/packages -p:Version=${{ steps.version.outputs.version }} -p:ContinuousIntegrationBuild=true
       - uses: actions/upload-artifact@v7
         with:
           name: nuget-${{ steps.version.outputs.version }}
           path: artifacts/packages
-  publish:
+          if-no-files-found: error
+
+  smoke:
+    name: dnx smoke (${{ matrix.os }})
     needs: package
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    environment: production
-    permissions: { contents: read, id-token: write }
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14]
+    runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v6
       - uses: actions/setup-dotnet@v5
-        with: { dotnet-version: 10.0.x }
+        with:
+          dotnet-version: 10.0.x
       - uses: actions/download-artifact@v7
         with:
           name: nuget-${{ needs.package.outputs.version }}
           path: artifacts/packages
-      - id: nuget-login
+      - name: Run packed tool through dnx
+        shell: pwsh
+        run: ./scripts/test-package.ps1 -PackageDirectory artifacts/packages -Version '${{ needs.package.outputs.version }}'
+
+  publish:
+    needs: [package, smoke]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/download-artifact@v7
+        with:
+          name: nuget-${{ needs.package.outputs.version }}
+          path: artifacts/packages
+      - name: Authenticate to NuGet.org
+        id: nuget-login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841
-        with: { user: dhhieu113 }
-      - run: dotnet nuget push "artifacts/packages/ImageCompress.Dnx.${{ needs.package.outputs.version }}.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+        with:
+          user: dhhieu113
+      - name: Publish to NuGet.org
+        run: dotnet nuget push "artifacts/packages/ImageCompress.Dnx.${{ needs.package.outputs.version }}.nupkg" --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
