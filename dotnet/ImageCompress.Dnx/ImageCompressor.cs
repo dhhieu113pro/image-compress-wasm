@@ -23,32 +23,40 @@ public static class ImageCompressor
                 options.Algorithm.ToString(),
                 options.RemoveMetadata);
 
-            try
-            {
-                if (result.Status != 0)
-                {
-                    var message = result.Error == 0
-                        ? "Native compression failed"
-                        : Marshal.PtrToStringUTF8(result.Error) ?? "Native compression failed";
-                    throw new InvalidOperationException(message);
-                }
+            return ProcessResult(result, NativeMethods.Free, NativeMethods.FreeError);
+        }
+    }
 
-                if (result.Data == 0 || result.Len == 0)
-                    throw new InvalidOperationException("Native compression returned an empty buffer");
-                if (result.Len > int.MaxValue)
-                    throw new InvalidOperationException("Compressed image is too large for a managed byte array");
-
-                var output = new byte[(int)result.Len];
-                Marshal.Copy(result.Data, output, 0, output.Length);
-                return output;
-            }
-            finally
+    internal static byte[] ProcessResult(
+        NativeMethods.NativeResult result,
+        Action<nint, nuint> freeData,
+        Action<nint> freeError)
+    {
+        try
+        {
+            if (result.Status != 0)
             {
-                if (result.Data != 0)
-                    NativeMethods.Free(result.Data, result.Len);
-                if (result.Error != 0)
-                    NativeMethods.FreeError(result.Error);
+                var message = result.Error == 0
+                    ? "Native compression failed"
+                    : Marshal.PtrToStringUTF8(result.Error)!;
+                throw new InvalidOperationException(message);
             }
+
+            if (result.Data == 0 || result.Len == 0)
+                throw new InvalidOperationException("Native compression returned an empty buffer");
+            if (result.Len > int.MaxValue)
+                throw new InvalidOperationException("Compressed image is too large for a managed byte array");
+
+            var output = new byte[(int)result.Len];
+            Marshal.Copy(result.Data, output, 0, output.Length);
+            return output;
+        }
+        finally
+        {
+            if (result.Data != 0)
+                freeData(result.Data, result.Len);
+            if (result.Error != 0)
+                freeError(result.Error);
         }
     }
 }
