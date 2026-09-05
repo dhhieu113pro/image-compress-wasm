@@ -11,7 +11,7 @@ public static class ImageCompressor
         if (input.Length == 0)
             throw new ArgumentException("Input image is empty", nameof(input));
 
-        fixed (byte* inputPtr = input)
+        fixed (byte* inputPtr = input.AsSpan())
         {
             var result = NativeMethods.Compress(
                 inputPtr,
