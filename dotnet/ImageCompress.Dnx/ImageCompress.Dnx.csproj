@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+    <PackageId>ImageCompress.Dnx</PackageId><VersionPrefix>0.1.0</VersionPrefix><Authors>dhhieu113</Authors><Description>Cross-platform image compression CLI backed by Rust.</Description>
+    <PackageTags>image;compress;rust;dnx;cli</PackageTags><PackageProjectUrl>https://github.com/dhhieu113pro/image-compress-wasm</PackageProjectUrl><RepositoryUrl>https://github.com/dhhieu113pro/image-compress-wasm</RepositoryUrl><RepositoryType>git</RepositoryType>
+    <PackAsTool>true</PackAsTool><ToolCommandName>image-compress</ToolCommandName><PackageLicenseExpression>MIT</PackageLicenseExpression><GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('../../artifacts/native/win-x64/image_compress.dll')"><None Include="../../artifacts/native/win-x64/image_compress.dll" Pack="true" PackagePath="runtimes/win-x64/native/" /></ItemGroup>
+  <ItemGroup Condition="Exists('../../artifacts/native/win-arm64/image_compress.dll')"><None Include="../../artifacts/native/win-arm64/image_compress.dll" Pack="true" PackagePath="runtimes/win-arm64/native/" /></ItemGroup>
+  <ItemGroup Condition="Exists('../../artifacts/native/linux-x64/libimage_compress.so')"><None Include="../../artifacts/native/linux-x64/libimage_compress.so" Pack="true" PackagePath="runtimes/linux-x64/native/" /></ItemGroup>
+  <ItemGroup Condition="Exists('../../artifacts/native/linux-arm64/libimage_compress.so')"><None Include="../../artifacts/native/linux-arm64/libimage_compress.so" Pack="true" PackagePath="runtimes/linux-arm64/native/" /></ItemGroup>
+  <ItemGroup Condition="Exists('../../artifacts/native/osx-x64/libimage_compress.dylib')"><None Include="../../artifacts/native/osx-x64/libimage_compress.dylib" Pack="true" PackagePath="runtimes/osx-x64/native/" /></ItemGroup>
+  <ItemGroup Condition="Exists('../../artifacts/native/osx-arm64/libimage_compress.dylib')"><None Include="../../artifacts/native/osx-arm64/libimage_compress.dylib" Pack="true" PackagePath="runtimes/osx-arm64/native/" /></ItemGroup>
+</Project>
