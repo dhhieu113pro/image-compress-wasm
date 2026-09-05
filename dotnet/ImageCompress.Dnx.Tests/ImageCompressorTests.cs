@@ -27,6 +27,23 @@ public sealed class ImageCompressorTests
     }
 
     [Fact]
+    public void Compress_UsesExplicitResizeBounds()
+    {
+        var options = CliOptions.Parse([
+            "input.png", "-o", "output.webp",
+            "--quality", "80",
+            "--max-width", "1",
+            "--max-height", "1"
+        ]);
+
+        var output = ImageCompressor.Compress(TinyPng, options);
+
+        Assert.True(output.Length >= 12);
+        Assert.Equal("RIFF", System.Text.Encoding.ASCII.GetString(output, 0, 4));
+        Assert.Equal("WEBP", System.Text.Encoding.ASCII.GetString(output, 8, 4));
+    }
+
+    [Fact]
     public void Compress_PropagatesNativeError()
     {
         var options = CliOptions.Parse(["input.png", "-o", "output.webp"]);
