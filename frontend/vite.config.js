@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: '/image-compress-wasm/',
+  base: process.env.GITHUB_PAGES === 'true' ? '/image-compress-wasm/' : '/',
 });
