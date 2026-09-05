@@ -45,6 +45,8 @@ jobs:
         run: npm run build:wasm
 
       - name: Build frontend
+        env:
+          GITHUB_PAGES: 'true'
         run: npm run build --prefix frontend
 
       - name: Upload Pages artifact
